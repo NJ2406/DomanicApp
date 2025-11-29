@@ -1,0 +1,52 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Replace backend placeholders with secrets
+        run: |
+          echo "---- BACKEND_BASE replacement ----"
+          if [ -n "${{ secrets.BACKEND_BASE }}" ]; then
+            sed -i "s|BACKEND_BASE_PLACEHOLDER|${{ secrets.BACKEND_BASE }}|g" app/src/main/java/com/example/domaniconeapk/MainActivity.java
+            echo "Replaced BACKEND_BASE_PLACEHOLDER with secret value."
+          else
+            echo "BACKEND_BASE is empty — leaving placeholder unchanged."
+          fi
+
+          echo "---- BACKEND_AUTH_TOKEN replacement ----"
+          if [ -n "${{ secrets.BACKEND_AUTH_TOKEN }}" ]; then
+            sed -i "s|BACKEND_AUTH_TOKEN_PLACEHOLDER|${{ secrets.BACKEND_AUTH_TOKEN }}|g" app/src/main/java/com/example/domaniconeapk/MainActivity.java
+            echo "Replaced BACKEND_AUTH_TOKEN_PLACEHOLDER with secret value."
+          else
+            echo "BACKEND_AUTH_TOKEN is empty — leaving placeholder unchanged."
+          fi
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          JAVA_TOOL_OPTIONS: "-Xmx4g"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: domanic-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
